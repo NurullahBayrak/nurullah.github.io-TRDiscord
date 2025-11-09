@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>TRDiscord</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Sol Menü -->
+  <aside class="sidebar">
+    <h2>TRDiscord</h2>
+    <nav>
+      <button onclick="showSection('servers')">🖥️ Sunucular</button>
+      <button onclick="showSection('friends')">👥 Arkadaşlar</button>
+      <button onclick="showSection('chat')">💬 Sohbet</button>
+      <button onclick="showSection('voice')">🎙️ Sesli Sohbet</button>
+      <button onclick="showSection('settings')">⚙️ Ayarlar</button>
+    </nav>
+  </aside>
+
+  <!-- Ana İçerik -->
+  <main class="main">
+    <!-- Giriş/Kayıt -->
+    <section id="authSection" class="card">
+      <h1>TRDiscord'a Hoş Geldin</h1>
+      <input type="text" id="username" placeholder="Kullanıcı Adı">
+      <input type="password" id="password" placeholder="Şifre">
+      <select id="role">
+        <option value="member">Üye</option>
+        <option value="mod">Moderatör</option>
+        <option value="admin">Admin</option>
+      </select>
+      <div class="buttons">
+        <button class="primary" onclick="login()">Giriş Yap</button>
+        <button class="secondary" onclick="register()">Kayıt Ol</button>
+      </div>
+      <div id="result"></div>
+    </section>
+
+    <!-- Ana Site -->
+    <section id="mainSection" style="display:none;">
+      <!-- Profil -->
+      <div class="card profile">
+        <h2>🎖️ Profil</h2>
+        <div id="userProfile"></div>
+      </div>
+
+      <!-- Sunucular -->
+      <div id="servers" class="card hidden">
+        <h2>🖥️ Sunucular</h2>
+        <input id="serverName" placeholder="Sunucu adı">
+        <button class="primary" onclick="addServer()">Sunucu Ekle</button>
+        <ul id="serversList"></ul>
+      </div>
+
+      <!-- Arkadaşlar -->
+      <div id="friends" class="card hidden">
+        <h2>👥 Arkadaşlar</h2>
+        <input id="friendName" placeholder="Arkadaş adı">
+        <button class="primary" onclick="addFriend()">Ekle</button>
+        <div class="tabs">
+          <button onclick="showFriends('all')">Tümü</button>
+          <button onclick="showFriends('online')">Çevrimiçi</button>
+          <button onclick="showFriends('pending')">Bekleyen</button>
+        </div>
+        <ul id="friendsList"></ul>
+      </div>
+
+      <!-- Sohbet -->
+      <div id="chat" class="card hidden">
+        <h2>💬 Sohbet</h2>
+        <div id="messages" class="messages"></div>
+        <div class="chat-input">
+          <input id="msg" placeholder="Mesaj yaz...">
+          <button class="primary" onclick="sendMsg()">Gönder</button>
+        </div>
+      </div>
+
+      <!-- Sesli Sohbet -->
+      <div id="voice" class="card hidden">
+        <h2>🎙️ Sesli Sohbet</h2>
+        <button class="primary" onclick="startMic()">Mikrofonu Aç</button>
+        <button class="secondary" onclick="stopMic()">Kapat</button>
+        <audio id="audio" autoplay controls></audio>
+      </div>
+
+      <!-- Ayarlar -->
+      <div id="settings" class="card hidden">
+        <h2>⚙️ Ayarlar</h2>
+        <label><input type="checkbox" id="notif"> Bildirimler</label><br>
+        <label><input type="checkbox" id="dark" checked> Karanlık Tema</label><br>
+        <input id="nick" placeholder="Takma ad">
+        <button class="primary" onclick="saveSettings()">Kaydet</button>
+        <div id="saveResult"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
