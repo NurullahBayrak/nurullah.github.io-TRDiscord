@@ -3,100 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <title>TRDiscord</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Sol Menü -->
-  <aside class="sidebar">
-    <h2>TRDiscord</h2>
-    <nav>
-      <button onclick="showSection('servers')">🖥️ Sunucular</button>
-      <button onclick="showSection('friends')">👥 Arkadaşlar</button>
-      <button onclick="showSection('chat')">💬 Sohbet</button>
-      <button onclick="showSection('voice')">🎙️ Sesli Sohbet</button>
-      <button onclick="showSection('settings')">⚙️ Ayarlar</button>
-    </nav>
-  </aside>
+  <!-- Auth Section -->
+  <div id="authSection">
+    <h2>Giriş / Kayıt</h2>
+    <input id="username" placeholder="Kullanıcı adı">
+    <input id="password" type="password" placeholder="Şifre">
+    <button onclick="register()">Kayıt Ol</button>
+    <button onclick="login()">Giriş Yap</button>
+    <p id="authResult"></p>
+  </div>
 
-  <!-- Ana İçerik -->
-  <main class="main">
-    <!-- Giriş/Kayıt -->
-    <section id="authSection" class="card">
-      <h1>TRDiscord'a Hoş Geldin</h1>
-      <input type="text" id="username" placeholder="Kullanıcı Adı">
-      <input type="password" id="password" placeholder="Şifre">
-      <select id="role">
-        <option value="member">Üye</option>
-        <option value="mod">Moderatör</option>
-        <option value="admin">Admin</option>
-      </select>
-      <div class="buttons">
-        <button class="primary" onclick="login()">Giriş Yap</button>
-        <button class="secondary" onclick="register()">Kayıt Ol</button>
-      </div>
-      <div id="result"></div>
-    </section>
+  <!-- App Section -->
+  <div id="app" class="hidden">
+    <!-- Header -->
+    <header>
+      <h1>TRDiscord</h1>
+      <button onclick="openSettings()">⚙️ Ayarlar</button>
+    </header>
 
-    <!-- Ana Site -->
-    <section id="mainSection" style="display:none;">
-      <!-- Profil -->
-      <div class="card profile">
-        <h2>🎖️ Profil</h2>
-        <div id="userProfile"></div>
-      </div>
+    <h2>Hoş geldin <span id="profileNick"></span></h2>
+    <p>Durum: <span id="profileStatus"></span></p>
+    <button onclick="logout()">Çıkış Yap</button>
 
-      <!-- Sunucular -->
-      <div id="servers" class="card hidden">
-        <h2>🖥️ Sunucular</h2>
-        <input id="serverName" placeholder="Sunucu adı">
-        <button class="primary" onclick="addServer()">Sunucu Ekle</button>
-        <ul id="serversList"></ul>
-      </div>
+    <!-- Arkadaşlar -->
+    <div id="friendsSection">
+      <h2>Arkadaşlar</h2>
+      <ul id="friendsList"></ul>
+    </div>
 
-      <!-- Arkadaşlar -->
-      <div id="friends" class="card hidden">
-        <h2>👥 Arkadaşlar</h2>
-        <input id="friendName" placeholder="Arkadaş adı">
-        <button class="primary" onclick="addFriend()">Ekle</button>
-        <div class="tabs">
-          <button onclick="showFriends('all')">Tümü</button>
-          <button onclick="showFriends('online')">Çevrimiçi</button>
-          <button onclick="showFriends('pending')">Bekleyen</button>
-        </div>
-        <ul id="friendsList"></ul>
-      </div>
+    <!-- Sunucular -->
+    <div id="serversSection">
+      <h2>Sunucular</h2>
+      <ul id="serversList"></ul>
 
-      <!-- Sohbet -->
-      <div id="chat" class="card hidden">
-        <h2>💬 Sohbet</h2>
-        <div id="messages" class="messages"></div>
-        <div class="chat-input">
-          <input id="msg" placeholder="Mesaj yaz...">
-          <button class="primary" onclick="sendMsg()">Gönder</button>
-        </div>
-      </div>
+      <!-- Sunucu oluşturma -->
+      <input id="newServer" placeholder="Sunucu adı">
+      <button onclick="createServer()">Sunucu Oluştur</button>
+    </div>
 
-      <!-- Sesli Sohbet -->
-      <div id="voice" class="card hidden">
-        <h2>🎙️ Sesli Sohbet</h2>
-        <button class="primary" onclick="startMic()">Mikrofonu Aç</button>
-        <button class="secondary" onclick="stopMic()">Kapat</button>
-        <audio id="audio" autoplay controls></audio>
-      </div>
+    <!-- Kanallar -->
+    <div id="channelsSection">
+      <h2>Kanallar</h2>
+      <ul id="channelsList"></ul>
 
-      <!-- Ayarlar -->
-      <div id="settings" class="card hidden">
-        <h2>⚙️ Ayarlar</h2>
-        <label><input type="checkbox" id="notif"> Bildirimler</label><br>
-        <label><input type="checkbox" id="dark" checked> Karanlık Tema</label><br>
-        <input id="nick" placeholder="Takma ad">
-        <button class="primary" onclick="saveSettings()">Kaydet</button>
-        <div id="saveResult"></div>
-      </div>
-    </section>
-  </main>
+      <!-- Kanal oluşturma -->
+      <input id="newChannel" placeholder="Kanal adı">
+      <button onclick="createChannel()">Kanal Oluştur</button>
+    </div>
 
+    <!-- Sohbet Alanı -->
+    <div id="chatSection">
+      <h2>Sohbet</h2>
+      <div id="messages"></div>
+      <input id="messageInput" placeholder="Mesaj yaz...">
+      <button onclick="sendMessage()">Gönder</button>
+    </div>
+
+    <!-- Ayarlar Menüsü -->
+    <div id="settingsSection" class="hidden">
+      <h2>Ayarlar</h2>
+      <label>Durum: 
+        <select id="statusSelect" onchange="changeStatus()">
+          <option value="Çevrimiçi">Çevrimiçi</option>
+          <option value="Rahatsız Etmeyin">Rahatsız Etmeyin</option>
+          <option value="Görünmez">Görünmez</option>
+        </select>
+      </label>
+      <button onclick="closeSettings()">Kapat</button>
+    </div>
+  </div>
+
+  <!-- Socket.io client backend’den otomatik gelir -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Senin script.js dosyan -->
   <script src="script.js"></script>
 </body>
 </html>
