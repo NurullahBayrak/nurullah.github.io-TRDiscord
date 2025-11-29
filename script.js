@@ -1,181 +1,270 @@
-// Sidebar menüsünden bölüm gösterme
-function showSection(sectionId) {
-  const sections = ['servers','friends','chat','voice','settings'];
-  sections.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.add('hidden');
-  });
-  const target = document.getElementById(sectionId);
-  if (target) target.classList.remove('hidden');
-}
+const socket = io("http://localhost:3000");
+let session = { currentUser: null };
+let ui = { currentServer: null, currentTextChannel: null };
 
-// -------------------- Profil --------------------
-function showMain(user, role) {
-  document.getElementById('authSection').style.display = 'none';
-  document.getElementById('mainSection').style.display = 'block';
-
-  const profile = document.getElementById('userProfile');
-  let badgeClass = 'member';
-  let badgeText = '👤 Üye';
-
-  if (role === 'mod') {
-    badgeClass = 'mod';
-    badgeText = '🛡️ Mod';
-  } else if (role === 'admin') {
-    badgeClass = 'admin';
-    badgeText = '👑 Admin';
-  }
-
-  profile.innerHTML = `
-    <span class="name">${user}</span>
-    <span class="badge ${badgeClass}">${badgeText}</span>
-  `;
-}
-
-// -------------------- Giriş / Kayıt --------------------
-function login() {
-  const user = document.getElementById('username').value.trim();
-  const pass = document.getElementById('password').value.trim();
-  const role = document.getElementById('role').value;
-  if (!user || !pass) { document.getElementById('result').innerText = '⚠️ Eksik bilgi'; return; }
-  document.getElementById('result').innerText = `✅ Hoş geldin ${user}`;
-  showMain(user, role);
-}
-
-function register() {
-  const user = document.getElementById('username').value.trim();
-  const pass = document.getElementById('password').value.trim();
-  const role = document.getElementById('role').value;
-  if (!user || !pass) { document.getElementById('result').innerText = '⚠️ Eksik bilgi'; return; }
-  document.getElementById('result').innerText = `✅ ${user} kayıt oldu`;
-  showMain(user, role);
-}
-
-// -------------------- Sesli Sohbet --------------------
-let stream;
-async function startMic() {
+// ---------------- Güvenli JSON Parse ----------------
+async function parseJsonSafe(r) {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const audio = document.getElementById('audio');
-    audio.srcObject = stream;
-    audio.play();
-  } catch (err) {
-    alert('Mikrofon açılamadı: ' + err.message);
-  }
-}
-function stopMic() {
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-    stream = null;
-    document.getElementById('audio').srcObject = null;
+    return await r.json();
+  } catch {
+    return {}; // boş obje dön, hata fırlatma
   }
 }
 
-// -------------------- Yazılı Sohbet --------------------
-function sendMsg() {
-  const msg = document.getElementById('msg').value.trim();
-  if (!msg) return;
-  const messages = document.getElementById('messages');
-  const userMsg = document.createElement('div');
-  userMsg.textContent = `👤 Sen: ${msg}`;
-  messages.appendChild(userMsg);
+// --------------- Auth ---------------
 
-  const botMsg = document.createElement('div');
-  botMsg.textContent = `🤖 Bot: "${msg}" mesajını aldım!`;
-  messages.appendChild(botMsg);
+// Kullanıcı kayıt
+async function register() {
+  const u = document.getElementById("username").value.trim();
+  const p = document.getElementById("password").value.trim();
+  const res = document.getElementById("authResult");
 
-  document.getElementById('msg').value = '';
-  messages.scrollTop = messages.scrollHeight;
-}
+  try {
+    const r = await fetch("/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ username: u, password: p })
+    });
 
-// -------------------- Arkadaşlar --------------------
-let onlineFriends = [];
-let pendingFriends = [];
+    const data = await parseJsonSafe(r);
+    if (!r.ok || !data.success) {
+      res.textContent = "⚠️ " + (data.error || "Kayıt başarısız");
+      return;
+    }
 
-function addFriend() {
-  const name = document.getElementById('friendName').value.trim();
-  if (!name) return;
-  pendingFriends.push(name);
-  document.getElementById('friendName').value = '';
-  showFriends('pending');
-}
-
-function acceptFriend(name) {
-  pendingFriends = pendingFriends.filter(f => f !== name);
-  onlineFriends.push(name);
-  showFriends('online');
-}
-
-function showFriends(type) {
-  const list = document.getElementById('friendsList');
-  let html = '';
-
-  if (type === 'all') {
-    html += '<li><strong>Çevrimiçi:</strong></li>';
-    html += onlineFriends.map(f => `<li>${f}</li>`).join('');
-    html += '<li><strong>Bekleyen:</strong></li>';
-    html += pendingFriends.map(f => `<li>${f} <button onclick="acceptFriend('${f}')">Kabul Et</button></li>`).join('');
-  }
-
-  if (type === 'online') {
-    html = onlineFriends.map(f => `<li>${f}</li>`).join('') || '<li>Hiç çevrimiçi yok</li>';
-  }
-
-  if (type === 'pending') {
-    html = pendingFriends.map(f => `<li>${f} <button onclick="acceptFriend('${f}')">Kabul Et</button></li>`).join('') || '<li>Bekleyen istek yok</li>';
-  }
-
-  list.innerHTML = html;
-}
-
-// -------------------- Sunucular --------------------
-let servers = [];
-
-function addServer() {
-  const name = document.getElementById('serverName').value.trim();
-  if (!name) return;
-  servers.push({ name, roles: [], members: [] });
-  renderServers();
-  document.getElementById('serverName').value = '';
-}
-
-function renderServers() {
-  document.getElementById('serversList').innerHTML = servers.map(s => `
-    <li>
-      <strong>${s.name}</strong>
-      <button onclick="addRole('${s.name}')">Rol Ekle</button>
-      <button onclick="addNick('${s.name}')">Takma Ad Ver</button>
-    </li>`).join('');
-}
-
-function addRole(serverName) {
-  const role = prompt(serverName + ' için yeni rol gir:');
-  if (role) {
-    const server = servers.find(s => s.name === serverName);
-    server.roles.push(role);
-    alert('Rol eklendi: ' + role);
+    session.currentUser = data.user;
+    res.textContent = "✅ Kayıt başarılı!";
+    openApp(data.user);
+  } catch (e) {
+    res.textContent = "⚠️ " + e.message;
   }
 }
 
-function addNick(serverName) {
-  const nick = prompt(serverName + ' için takma ad gir:');
-  if (nick) {
-    alert('Takma ad ayarlandı: ' + nick);
+// Kullanıcı giriş
+async function login() {
+  const u = document.getElementById("username").value.trim();
+  const p = document.getElementById("password").value.trim();
+  const res = document.getElementById("authResult");
+
+  try {
+    const r = await fetch("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ username: u, password: p })
+    });
+
+    const data = await parseJsonSafe(r);
+    if (!r.ok || !data.success) {
+      res.textContent = "⚠️ " + (data.error || "Hatalı giriş");
+      return;
+    }
+
+    session.currentUser = data.user;
+    res.textContent = "✅ Giriş başarılı!";
+    openApp(data.user);
+  } catch (e) {
+    res.textContent = "⚠️ " + e.message;
   }
 }
 
-// -------------------- Ayarlar --------------------
-function saveSettings() {
-  const notif = document.getElementById('notif').checked;
-  const dark = document.getElementById('dark').checked;
-  const nick = document.getElementById('nick').value.trim();
-  let text = '✅ Ayarlar: ';
-  text += notif ? 'Bildirimler açık, ' : 'Bildirimler kapalı, ';
-  text += dark ? 'Karanlık tema, ' : 'Açık tema, ';
-  text += nick ? `Takma ad: ${nick}` : 'Takma ad yok';
-  document.getElementById('saveResult').innerText = text;
+// Kullanıcı çıkış
+async function logout() {
+  try {
+    const r = await fetch("/logout", { method: "POST", credentials: "include" });
+    const data = await parseJsonSafe(r);
 
-  // Tema değişimi
-  document.body.style.backgroundColor = dark ? '#0d1117' : '#f0f0f0';
-  document.body.style.color = dark ? '#c9d1d9' : '#000';
+    if (data.success) {
+      session.currentUser = null;
+      document.getElementById("authSection").classList.remove("hidden");
+      document.getElementById("app").classList.add("hidden");
+      document.getElementById("authResult").innerText = "Çıkış yapıldı!";
+    }
+  } catch (e) {
+    document.getElementById("authResult").innerText = "⚠️ " + e.message;
+  }
+}
+
+// ---------------- Arkadaşlar ----------------
+async function loadFriends(user) {
+  try {
+    const r = await fetch(`/friends/${user}`, { credentials: "include" });
+    const data = await r.json();
+    const list = document.getElementById("friendsList");
+    const requests = document.getElementById("friendRequests");
+
+    list.innerHTML = "";
+    requests.innerHTML = "";
+
+    // Arkadaş listesi
+    data.friends.forEach(f => {
+      const li = document.createElement("li");
+      li.textContent = f;
+      list.appendChild(li);
+    });
+
+    // Bekleyen istekler
+    data.requests.forEach(req => {
+      const li = document.createElement("li");
+      li.textContent = `İstek: ${req.from}`;
+      requests.appendChild(li);
+    });
+  } catch (e) {
+    console.error("Arkadaşlar yüklenemedi:", e);
+  }
+}
+
+// ---------------- Arkadaş ekleme ----------------
+async function addFriend() {
+  const friendName = document.getElementById("newFriend").value.trim();
+  if (!friendName) return;
+
+  try {
+    const r = await fetch("/friends/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ from: session.currentUser, to: friendName })
+    });
+
+    const data = await parseJsonSafe(r);
+    if (data.success) {
+      alert("✅ Arkadaş isteği gönderildi!");
+      loadFriends(session.currentUser); // listeyi yenile
+    } else {
+      alert("⚠️ " + (data.error || "Arkadaş eklenemedi"));
+    }
+  } catch (e) {
+    console.error("Arkadaş ekleme hatası:", e);
+  }
+}
+
+// ---------------- Sunucular ----------------
+async function loadServers() {
+  try {
+    const r = await fetch("/servers", { credentials: "include" });
+    const data = await r.json();
+    const list = document.getElementById("serversList");
+    list.innerHTML = "";
+
+    data.forEach(srv => {
+      const li = document.createElement("li");
+      li.textContent = srv.name + " (Owner: " + srv.owner + ")";
+      li.onclick = () => openServer(srv); // Sunucuya tıklayınca aç
+      list.appendChild(li);
+    });
+  } catch (e) {
+    console.error("Sunucular yüklenemedi:", e);
+  }
+}
+
+// ---------------- Sunucu oluşturma ----------------
+async function createServer() {
+  const serverName = document.getElementById("newServer").value.trim();
+  if (!serverName) return;
+
+  try {
+    const r = await fetch("/servers/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ name: serverName, owner: session.currentUser })
+    });
+
+    const data = await parseJsonSafe(r);
+    if (data.success) {
+      alert("✅ Sunucu oluşturuldu!");
+      loadServers(); // listeyi yenile
+    } else {
+      alert("⚠️ " + (data.error || "Sunucu oluşturulamadı"));
+    }
+  } catch (e) {
+    console.error("Sunucu oluşturma hatası:", e);
+  }
+}
+
+// ---------------- Kanallar ----------------
+async function loadChannels(server) {
+  try {
+    const r = await fetch(`/servers/${server.name}/channels`, { credentials: "include" });
+    const data = await r.json();
+    const list = document.getElementById("channelsList");
+    list.innerHTML = "";
+
+    data.forEach(ch => {
+      const li = document.createElement("li");
+      li.textContent = ch.name;
+      li.onclick = () => openChannel(ch);
+      list.appendChild(li);
+    });
+  } catch (e) {
+    console.error("Kanallar yüklenemedi:", e);
+  }
+}
+
+async function createChannel() {
+  const channelName = document.getElementById("newChannel").value.trim();
+  if (!channelName || !ui.currentServer) return;
+
+  try {
+    const r = await fetch(`/servers/${ui.currentServer.name}/channels/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ name: channelName })
+    });
+
+    const data = await parseJsonSafe(r);
+    if (data.success) {
+      alert("✅ Kanal oluşturuldu!");
+      loadChannels(ui.currentServer);
+    } else {
+      alert("⚠️ " + (data.error || "Kanal oluşturulamadı"));
+    }
+  } catch (e) {
+    console.error("Kanal oluşturma hatası:", e);
+  }
+}
+
+function openChannel(channel) {
+  ui.currentTextChannel = channel;
+  console.log("Kanal açıldı:", channel.name);
+  document.getElementById("messages").innerHTML = ""; // sohbet temizle
+}
+
+// ---------------- Uygulama Açılışı ----------------
+function openApp(user) {
+  document.getElementById("authSection").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("profileNick").textContent = user;
+  document.getElementById("profileStatus").textContent = "Çevrimiçi";
+
+  // Arkadaşlar ve sunucular yükle
+  loadFriends(user);
+  loadServers();
+}
+
+// ---------------- Sunucu Açma ----------------
+function openServer(server) {
+  ui.currentServer = server;
+  console.log("Sunucu açıldı:", server.name);
+  loadChannels(server); // sunucu açıldığında kanalları yükle
+}
+
+// ---------------- Sohbet ----------------
+
+// Mesaj gönder
+function sendMessage() {
+  const input = document.getElementById("messageInput");
+  const msg = input.value.trim();
+  if (!msg || !session.currentUser) return;
+
+  // Sunucuya mesaj gönder
+  socket.emit("message", {
+    user: session.currentUser,
+    text: msg,
+    server: ui.currentServer ? ui.currentServer.name : null,
+    channel: ui.currentTextChannel ? ui.currentTextChannel.name : null
+  });
 }
